@@ -147,7 +147,7 @@ fn find_min_points_die(dice: &[Die]) -> usize {
 fn find_big_min_die(dice: &[Die]) -> usize {
     dice.iter()
         .enumerate()
-        .min_by_key(|(_, d)| (d.points(), 0 - d.max_value))
+        .min_by_key(|(_, d)| (d.points(), u8::MAX - d.max_value))
         .unwrap()
         .0
 }
@@ -224,7 +224,11 @@ fn all_big_zero_or_one_zero_or_big_min_strategy(dice: &[Die]) -> Vec<usize> {
 
     let all_zeros = find_zero_point_dice(dice);
     if !all_zeros.is_empty() {
-        return vec![all_zeros[0]];
+        if dice.iter().filter(|die| die.max_value != 6).count() == 0 {
+            return all_zeros;
+        } else {
+            return vec![all_zeros[0]];
+        }
     }
 
     vec![find_big_min_die(dice)]
