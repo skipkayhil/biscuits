@@ -219,6 +219,12 @@ fn all_zero_or_big_min_strategy(dice: &[Die]) -> Vec<usize> {
 fn all_big_zero_or_one_zero_or_big_min_strategy(dice: &[Die]) -> Vec<usize> {
     let big_zeros = find_big_zero_dice(dice);
     if !big_zeros.is_empty() {
+        let big_dice_count = dice.iter().filter(|die| die.max_value != 6).count();
+        let big_zero_count = big_zeros.len();
+
+        if big_dice_count == big_zero_count {
+            return find_zero_point_dice(dice);
+        }
         return big_zeros;
     }
 
