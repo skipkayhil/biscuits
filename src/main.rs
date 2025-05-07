@@ -190,6 +190,22 @@ fn all_zero_or_prio_min_strategy(dice: &[Die]) -> Vec<usize> {
     vec![best_index]
 }
 
+fn all_zero_or_big_min_strategy(dice: &[Die]) -> Vec<usize> {
+    // First check for zero point dice
+    let zero_indices = find_zero_point_dice(dice);
+    if !zero_indices.is_empty() {
+        return zero_indices;
+    }
+
+    vec![
+        dice.iter()
+            .enumerate()
+            .min_by_key(|(_, d)| (d.points(), 0 - d.max_value))
+            .unwrap()
+            .0,
+    ]
+}
+
 #[cfg(test)]
 mod func_tests {
     use super::*;
@@ -387,6 +403,10 @@ fn main() {
         (
             "All Zero or Prio Min".to_string(),
             all_zero_or_prio_min_strategy,
+        ),
+        (
+            "All Zero or Big Min".to_string(),
+            all_zero_or_big_min_strategy,
         ),
     ];
 
