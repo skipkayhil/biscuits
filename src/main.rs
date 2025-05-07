@@ -151,15 +151,13 @@ fn find_dice_with_same_value(dice: &[Die], index: usize) -> Vec<usize> {
         .collect()
 }
 
-// Combining these into complete strategies
-
-// Strategy 1: Remove the die with minimum points
-fn min_points_strategy(dice: &[Die]) -> Vec<usize> {
+// Remove the die with minimum points
+fn one_min_strategy(dice: &[Die]) -> Vec<usize> {
     vec![find_min_points_die(dice)]
 }
 
-// Strategy 2: Remove all dice with zero points, or the min points die if none
-fn zero_points_strategy(dice: &[Die]) -> Vec<usize> {
+// Remove all dice with zero points, or the min points die if none
+fn all_zero_or_one_min_strategy(dice: &[Die]) -> Vec<usize> {
     let zero_indices = find_zero_point_dice(dice);
     if !zero_indices.is_empty() {
         zero_indices
@@ -168,14 +166,8 @@ fn zero_points_strategy(dice: &[Die]) -> Vec<usize> {
     }
 }
 
-// Strategy 3: Remove all dice with the same value as the min points die
-fn same_value_strategy(dice: &[Die]) -> Vec<usize> {
-    let min_index = find_min_points_die(dice);
-    find_dice_with_same_value(dice, min_index)
-}
-
-// Strategy 4: Prioritize removing high-sided dice when they have low points
-fn prioritize_max_value_strategy(dice: &[Die]) -> Vec<usize> {
+// Prioritize removing high-sided dice when they have low points
+fn all_zero_or_prio_min_strategy(dice: &[Die]) -> Vec<usize> {
     // First check for zero point dice
     let zero_indices = find_zero_point_dice(dice);
     if !zero_indices.is_empty() {
@@ -190,66 +182,6 @@ fn prioritize_max_value_strategy(dice: &[Die]) -> Vec<usize> {
         // Score function: higher is better - prioritize high max_value and low points
         let score = die.max_value as f32 - 2.0 * die.points() as f32;
         if score > best_score {
-            best_score = score;
-            best_index = i;
-        }
-    }
-
-    vec![best_index]
-}
-
-// Strategy 5: Minimize expected future regret
-fn minimize_regret_strategy(dice: &[Die]) -> Vec<usize> {
-    // First check for zero point dice
-    let zero_indices = find_zero_point_dice(dice);
-    if !zero_indices.is_empty() {
-        return zero_indices;
-    }
-
-    // Calculate expected future regret for each die
-    let mut min_regret = f32::MAX;
-    let mut min_index = 0;
-
-    for (i, die) in dice.iter().enumerate() {
-        // Expected value from removing this die
-        let removal_points = die.points() as f32;
-
-        // Expected value from average future rolls of this die
-        // The average roll on an n-sided die is (n+1)/2
-        let expected_future_value = (die.max_value as f32 + 1.0) / 2.0;
-        let expected_future_points = die.max_value as f32 - expected_future_value;
-
-        // Regret = current points - expected future points
-        let regret = removal_points - expected_future_points;
-
-        if regret < min_regret {
-            min_regret = regret;
-            min_index = i;
-        }
-    }
-
-    vec![min_index]
-}
-
-// Strategy 6: Hybrid - combine min points and prioritize max value
-fn hybrid_strategy(dice: &[Die]) -> Vec<usize> {
-    // First check for zero point dice
-    let zero_indices = find_zero_point_dice(dice);
-    if !zero_indices.is_empty() {
-        return zero_indices;
-    }
-
-    // For each die, calculate a weighted score based on points and max value
-    let mut best_index = 0;
-    let mut best_score = f32::MAX; // Lower is better here
-
-    for (i, die) in dice.iter().enumerate() {
-        // Weight low points more heavily for low-sided dice
-        // and give more importance to the die's relative value (how close to max)
-        let relative_value = die.current_value as f32 / die.max_value as f32;
-        let score = die.points() as f32 * (1.0 + (1.0 - relative_value));
-
-        if score < best_score {
             best_score = score;
             best_index = i;
         }
@@ -313,28 +245,61 @@ mod func_tests {
     }
 
     #[test]
-    fn test_same_value_strategy() {
-        let dice = vec![
+    fn test_all_zero_or_prio_min_strategy() {
+        let mut dice = vec![
             Die {
                 max_value: 6,
                 current_value: 3,
-            },
+            }, // 3 points
             Die {
                 max_value: 8,
                 current_value: 7,
-            }, // Min points (1)
+            }, // 1 point
             Die {
                 max_value: 9,
-                current_value: 7,
-            }, // Same value as min points die
+                current_value: 5,
+            }, // 4 points
             Die {
                 max_value: 12,
-                current_value: 3,
-            },
+                current_value: 10,
+            }, // 2 points
         ];
 
-        let indices = same_value_strategy(&dice);
-        assert_eq!(indices, vec![1, 2]); // Should select both dice with value 7
+        let prio_min = all_zero_or_prio_min_strategy(&dice);
+        assert_eq!(vec![3], prio_min); // 12 - 2 * 2 = 8
+
+        dice.remove(prio_min[0]);
+        let prio_min = all_zero_or_prio_min_strategy(&dice);
+        assert_eq!(vec![1], prio_min); // 8 - 2 * 1 = 6
+
+        dice.remove(prio_min[0]);
+        let prio_min = all_zero_or_prio_min_strategy(&dice);
+        assert_eq!(vec![1], prio_min); // 9 - 2 * 4 = 1
+
+        dice.remove(prio_min[0]);
+        let prio_min = all_zero_or_prio_min_strategy(&dice);
+        assert_eq!(vec![0], prio_min); // 6 - 2 * 3 = 0
+    }
+
+    #[test]
+    fn test_all_zero_or_prio_min_strategy_hmm() {
+        let mut dice = vec![
+            Die {
+                max_value: 6,
+                current_value: 5,
+            }, // 1 points
+            Die {
+                max_value: 12,
+                current_value: 9,
+            }, // 3 points
+        ];
+
+        let prio_min = all_zero_or_prio_min_strategy(&dice);
+        assert_eq!(vec![1], prio_min); // 12 - 2 * 3 = 6
+
+        dice.remove(prio_min[0]);
+        let prio_min = all_zero_or_prio_min_strategy(&dice);
+        assert_eq!(vec![0], prio_min); // 6 - 2 * 1 = 4
     }
 
     #[test]
@@ -368,7 +333,7 @@ mod func_tests {
 
     #[test]
     fn test_full_game_simulation() {
-        let points = simulate_game(min_points_strategy, 785);
+        let points = simulate_game(one_min_strategy, 785);
         assert!(points == 0);
     }
 }
@@ -413,17 +378,16 @@ fn run_simulations(strategy: Strategy, num_simulations: u64) -> (f64, u8, u64, u
 fn main() {
     let num_simulations: u64 = 100000;
 
-    // Define the strategies with their names
     let strategies: Vec<(String, Strategy)> = vec![
-        ("Min Points".to_string(), min_points_strategy),
-        ("Zero Points".to_string(), zero_points_strategy),
-        ("Same Value".to_string(), same_value_strategy),
+        ("One Min".to_string(), one_min_strategy),
         (
-            "Prioritize Max Value".to_string(),
-            prioritize_max_value_strategy,
+            "All Zero or One Min".to_string(),
+            all_zero_or_one_min_strategy,
         ),
-        ("Minimize Regret".to_string(), minimize_regret_strategy),
-        ("Hybrid".to_string(), hybrid_strategy),
+        (
+            "All Zero or Prio Min".to_string(),
+            all_zero_or_prio_min_strategy,
+        ),
     ];
 
     println!("Simulating {} games for each strategy...", num_simulations);
