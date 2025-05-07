@@ -120,6 +120,14 @@ fn find_zero_point_dice(dice: &[Die]) -> Vec<usize> {
         .collect()
 }
 
+fn find_big_zero_dice(dice: &[Die]) -> Vec<usize> {
+    dice.iter()
+        .enumerate()
+        .filter(|(_, die)| die.points() == 0 && die.max_value != 6)
+        .map(|(i, _)| i)
+        .collect()
+}
+
 // Find the single die with minimum points
 fn find_min_points_die(dice: &[Die]) -> usize {
     let mut min_points = u8::MAX;
@@ -134,6 +142,14 @@ fn find_min_points_die(dice: &[Die]) -> usize {
     }
 
     min_index
+}
+
+fn find_big_min_die(dice: &[Die]) -> usize {
+    dice.iter()
+        .enumerate()
+        .min_by_key(|(_, d)| (d.points(), 0 - d.max_value))
+        .unwrap()
+        .0
 }
 
 // Find all dice with the same value as the die at the given index
@@ -197,13 +213,21 @@ fn all_zero_or_big_min_strategy(dice: &[Die]) -> Vec<usize> {
         return zero_indices;
     }
 
-    vec![
-        dice.iter()
-            .enumerate()
-            .min_by_key(|(_, d)| (d.points(), 0 - d.max_value))
-            .unwrap()
-            .0,
-    ]
+    vec![find_big_min_die(dice)]
+}
+
+fn all_big_zero_or_one_zero_or_big_min_strategy(dice: &[Die]) -> Vec<usize> {
+    let big_zeros = find_big_zero_dice(dice);
+    if !big_zeros.is_empty() {
+        return big_zeros;
+    }
+
+    let all_zeros = find_zero_point_dice(dice);
+    if !all_zeros.is_empty() {
+        return vec![all_zeros[0]];
+    }
+
+    vec![find_big_min_die(dice)]
 }
 
 #[cfg(test)]
@@ -396,17 +420,15 @@ fn main() {
 
     let strategies: Vec<(String, Strategy)> = vec![
         ("One Min".to_string(), one_min_strategy),
+        ("All Zero/One Min".to_string(), all_zero_or_one_min_strategy),
         (
-            "All Zero or One Min".to_string(),
-            all_zero_or_one_min_strategy,
-        ),
-        (
-            "All Zero or Prio Min".to_string(),
+            "All Zero/Prio Min".to_string(),
             all_zero_or_prio_min_strategy,
         ),
+        ("All Zero/Big Min".to_string(), all_zero_or_big_min_strategy),
         (
-            "All Zero or Big Min".to_string(),
-            all_zero_or_big_min_strategy,
+            "All Big Zero/One Zero/Big Min".to_string(),
+            all_big_zero_or_one_zero_or_big_min_strategy,
         ),
     ];
 
@@ -431,8 +453,8 @@ fn main() {
 
     // Print results in a nicely formatted table
     println!(
-        "\n{:<25} {:<12} {:<15} {:<5} {:<10}",
-        "Strategy", "Avg Points", "Min (Gravies)", "Max", "Time"
+        "\n{:<30} {:<10} {:>4} {:>8} {:>4} {:>10}",
+        "Strategy", "Avg Points", "Min", "Gravies", "Max", "Time"
     );
     println!("{:-<72}", "");
 
@@ -442,7 +464,7 @@ fn main() {
 
     for (name, (avg, min, gravies, max, duration)) in sorted_results {
         println!(
-            "{:<25} {:<12.2} {:<7} ({:>5}) {:<5} {:.2?}",
+            "{:<30} {:>10.2} {:>4} {:>8} {:>4} {:>10.2?}",
             name, avg, min, gravies, max, duration
         );
     }
