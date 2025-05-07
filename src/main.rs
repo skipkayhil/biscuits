@@ -20,8 +20,8 @@ impl Die {
     }
 
     fn roll(&mut self, rng: &mut impl Rng) {
-        // Use the updated method name to avoid deprecation warning
-        self.current_value = rng.gen_range(1..=self.max_value);
+        // Use the new method name from rand 0.9.1
+        self.current_value = rng.random_range(1..=self.max_value);
     }
 
     fn points(&self) -> u8 {
@@ -310,6 +310,9 @@ fn main() {
 
     println!("Simulating {} games for each strategy...", num_simulations);
 
+    // Type alias for the result type to reduce complexity
+    type SimulationResult = (f64, u8, u8, std::time::Duration);
+
     let mut results = HashMap::new();
 
     for strategy in strategies {
@@ -330,8 +333,8 @@ fn main() {
     );
     println!("{:-<72}", "");
 
-    let mut sorted_results: Vec<(&String, &(f64, u8, u8, std::time::Duration))> =
-        results.iter().collect();
+    // Sort and display results
+    let mut sorted_results: Vec<(&String, &SimulationResult)> = results.iter().collect();
     sorted_results.sort_by(|a, b| a.1.0.partial_cmp(&b.1.0).unwrap());
 
     for (name, (avg, min, max, duration)) in sorted_results {
