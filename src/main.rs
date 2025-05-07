@@ -29,6 +29,21 @@ impl Die {
     }
 }
 
+#[cfg(test)]
+mod die_tests {
+    use super::*;
+
+    #[test]
+    fn test_points() {
+        let mut die = Die::new(6);
+        die.current_value = 4;
+        assert_eq!(die.points(), 2); // 6 - 4 = 2 points
+
+        die.current_value = 6;
+        assert_eq!(die.points(), 0); // 6 - 6 = 0 points
+    }
+}
+
 // Game state
 struct Game {
     dice: Vec<Die>,
@@ -74,6 +89,20 @@ impl Game {
 
     fn is_over(&self) -> bool {
         self.dice.is_empty()
+    }
+}
+
+impl std::fmt::Display for Game {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+        for die in self.dice.iter() {
+            write!(f, "{} ", die.current_value)?;
+        }
+        writeln!(f)?;
+        for die in self.dice.iter() {
+            write!(f, "{} ", die.max_value)?;
+        }
+
+        Ok(())
     }
 }
 
@@ -229,6 +258,121 @@ fn hybrid_strategy(dice: &[Die]) -> Vec<usize> {
     vec![best_index]
 }
 
+#[cfg(test)]
+mod func_tests {
+    use super::*;
+
+    #[test]
+    fn test_find_zero_point_dice() {
+        let dice = vec![
+            Die {
+                max_value: 6,
+                current_value: 6,
+            },
+            Die {
+                max_value: 6,
+                current_value: 3,
+            },
+            Die {
+                max_value: 8,
+                current_value: 8,
+            },
+            Die {
+                max_value: 9,
+                current_value: 7,
+            },
+        ];
+
+        let zero_indices = find_zero_point_dice(&dice);
+        assert_eq!(zero_indices, vec![0, 2]); // Only indices 0 and 2 have zero points
+    }
+
+    #[test]
+    fn test_find_min_points_die() {
+        let dice = vec![
+            Die {
+                max_value: 6,
+                current_value: 3,
+            }, // 3 points
+            Die {
+                max_value: 8,
+                current_value: 7,
+            }, // 1 point
+            Die {
+                max_value: 9,
+                current_value: 5,
+            }, // 4 points
+            Die {
+                max_value: 12,
+                current_value: 10,
+            }, // 2 points
+        ];
+
+        let min_index = find_min_points_die(&dice);
+        assert_eq!(min_index, 1); // Index 1 has only 1 point
+    }
+
+    #[test]
+    fn test_same_value_strategy() {
+        let dice = vec![
+            Die {
+                max_value: 6,
+                current_value: 3,
+            },
+            Die {
+                max_value: 8,
+                current_value: 7,
+            }, // Min points (1)
+            Die {
+                max_value: 9,
+                current_value: 7,
+            }, // Same value as min points die
+            Die {
+                max_value: 12,
+                current_value: 3,
+            },
+        ];
+
+        let indices = same_value_strategy(&dice);
+        assert_eq!(indices, vec![1, 2]); // Should select both dice with value 7
+    }
+
+    #[test]
+    fn test_game_remove_dice() {
+        let mut game = Game::new();
+        game.dice = vec![
+            Die {
+                max_value: 6,
+                current_value: 3,
+            },
+            Die {
+                max_value: 8,
+                current_value: 7,
+            },
+            Die {
+                max_value: 9,
+                current_value: 5,
+            },
+            Die {
+                max_value: 12,
+                current_value: 10,
+            },
+        ];
+
+        let points = game.remove_dice(&[1, 3]);
+        assert_eq!(points, 3); // 1 + 2 = 3 points
+        assert_eq!(game.dice.len(), 2); // Should have 2 dice left
+        assert_eq!(game.dice[0].current_value, 3); // First die should remain
+        assert_eq!(game.dice[1].current_value, 5); // Third die should remain
+    }
+
+    #[test]
+    fn test_full_game_simulation() {
+        let points = simulate_game(min_points_strategy, 785);
+        assert!(points == 0);
+    }
+}
+
 fn simulate_game(strategy: Strategy, seed: u64) -> u8 {
     let mut rng = StdRng::seed_from_u64(seed);
     let mut game = Game::new();
@@ -236,6 +380,9 @@ fn simulate_game(strategy: Strategy, seed: u64) -> u8 {
 
     while !game.is_over() {
         game.roll_all(&mut rng);
+        // if seed == 785 {
+        //     println!("{}\n", game);
+        // }
         let indices = strategy(&game.dice);
         total_points += game.remove_dice(&indices);
     }
@@ -243,24 +390,28 @@ fn simulate_game(strategy: Strategy, seed: u64) -> u8 {
     total_points
 }
 
-fn run_simulations(strategy: Strategy, num_simulations: usize) -> (f64, u8, u8) {
+fn run_simulations(strategy: Strategy, num_simulations: u64) -> (f64, u8, u64, u8) {
     let mut total_points = 0;
+    let mut gravies = 0;
     let mut min_points = u8::MAX;
     let mut max_points = 0;
 
     for i in 0..num_simulations {
-        let points = simulate_game(strategy, i as u64);
+        let points = simulate_game(strategy, i);
         total_points += points as u64;
+        if points == 0 {
+            gravies += 1;
+        }
         min_points = min_points.min(points);
         max_points = max_points.max(points);
     }
 
     let avg_points = total_points as f64 / num_simulations as f64;
-    (avg_points, min_points, max_points)
+    (avg_points, min_points, gravies, max_points)
 }
 
 fn main() {
-    let num_simulations = 100000;
+    let num_simulations: u64 = 100000;
 
     // Define the strategies with their names
     let strategies: Vec<(String, Strategy)> = vec![
@@ -278,22 +429,26 @@ fn main() {
     println!("Simulating {} games for each strategy...", num_simulations);
 
     // Type alias for the result type to reduce complexity
-    type SimulationResult = (f64, u8, u8, std::time::Duration);
+    type SimulationResult = (f64, u8, u64, u8, std::time::Duration);
 
     let mut results = HashMap::new();
 
     for (name, strategy) in strategies {
         let start = Instant::now();
-        let (avg_points, min_points, max_points) = run_simulations(strategy, num_simulations);
+        let (avg_points, min_points, gravies, max_points) =
+            run_simulations(strategy, num_simulations);
         let duration = start.elapsed();
 
-        results.insert(name, (avg_points, min_points, max_points, duration));
+        results.insert(
+            name,
+            (avg_points, min_points, gravies, max_points, duration),
+        );
     }
 
     // Print results in a nicely formatted table
     println!(
-        "\n{:<25} {:<15} {:<10} {:<10} {:<10}",
-        "Strategy", "Avg Points", "Min", "Max", "Time"
+        "\n{:<25} {:<12} {:<15} {:<5} {:<10}",
+        "Strategy", "Avg Points", "Min (Gravies)", "Max", "Time"
     );
     println!("{:-<72}", "");
 
@@ -301,10 +456,10 @@ fn main() {
     let mut sorted_results: Vec<(&String, &SimulationResult)> = results.iter().collect();
     sorted_results.sort_by(|a, b| a.1.0.partial_cmp(&b.1.0).unwrap());
 
-    for (name, (avg, min, max, duration)) in sorted_results {
+    for (name, (avg, min, gravies, max, duration)) in sorted_results {
         println!(
-            "{:<25} {:<15.2} {:<10} {:<10} {:.2?}",
-            name, avg, min, max, duration
+            "{:<25} {:<12.2} {:<7} ({:>5}) {:<5} {:.2?}",
+            name, avg, min, gravies, max, duration
         );
     }
 }
