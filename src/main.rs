@@ -25,10 +25,10 @@ impl Die {
         }
     }
 
-    fn nine() -> Self {
+    fn ten() -> Self {
         Die {
-            max_value: 9,
-            points: 9,
+            max_value: 10,
+            points: 10,
         }
     }
 
@@ -85,7 +85,7 @@ impl Game {
 
         // Add the special dice
         dice.push(Die::eight());
-        dice.push(Die::nine());
+        dice.push(Die::ten());
         dice.push(Die::twelve());
 
         Game { dice }
@@ -266,7 +266,7 @@ mod func_tests {
             Die::six().with_points(0),
             Die::six().with_points(3),
             Die::eight().with_points(0),
-            Die::nine().with_points(1),
+            Die::ten().with_points(1),
         ];
 
         let zero_indices = find_zero_point_dice(&dice);
@@ -278,7 +278,7 @@ mod func_tests {
         let dice = vec![
             Die::six().with_points(3),
             Die::eight().with_points(1),
-            Die::nine().with_points(4),
+            Die::ten().with_points(4),
             Die::twelve().with_points(2),
         ];
 
@@ -291,7 +291,7 @@ mod func_tests {
         let mut dice = vec![
             Die::six().with_points(3),
             Die::eight().with_points(1),
-            Die::nine().with_points(4),
+            Die::ten().with_points(4),
             Die::twelve().with_points(2),
         ];
 
@@ -304,11 +304,11 @@ mod func_tests {
 
         dice.remove(prio_min[0]);
         let prio_min = all_zero_or_prio_min_strategy(&dice);
-        assert_eq!(vec![0], prio_min); // 6 - 4 * 3 = -6
+        assert_eq!(vec![1], prio_min); // 10 - 4 * 4 = -6
 
         dice.remove(prio_min[0]);
         let prio_min = all_zero_or_prio_min_strategy(&dice);
-        assert_eq!(vec![0], prio_min); // 9 - 4 * 4 = -7
+        assert_eq!(vec![0], prio_min); // 6 - 4 * 3 = -6
     }
 
     #[test]
@@ -345,7 +345,7 @@ mod func_tests {
         game.dice = vec![
             Die::six().with_points(3),
             Die::eight().with_points(1),
-            Die::nine().with_points(5),
+            Die::ten().with_points(5),
             Die::twelve().with_points(2),
         ];
 
