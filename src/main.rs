@@ -4,55 +4,53 @@ use rand::rngs::StdRng;
 use std::collections::HashMap;
 use std::time::Instant;
 
-// Represent a die with its maximum value and current value
 #[derive(Debug, Clone)]
 struct Die {
     max_value: u8,
-    current_value: u8,
+    points: u8,
 }
 
 impl Die {
     fn six() -> Self {
         Die {
             max_value: 6,
-            current_value: 0,
+            points: 6,
         }
     }
 
     fn eight() -> Self {
         Die {
             max_value: 8,
-            current_value: 0,
+            points: 8,
         }
     }
 
     fn nine() -> Self {
         Die {
             max_value: 9,
-            current_value: 0,
+            points: 9,
         }
     }
 
     fn twelve() -> Self {
         Die {
             max_value: 12,
-            current_value: 0,
+            points: 12,
         }
     }
 
     #[cfg(test)]
-    fn with_roll(mut self, roll: u8) -> Self {
-        self.current_value = roll;
+    fn with_points(mut self, points: u8) -> Self {
+        self.points = points;
         self
     }
 
     fn roll(&mut self, rng: &mut impl Rng) {
-        // Use the new method name from rand 0.9.1
-        self.current_value = rng.random_range(1..=self.max_value);
+        self.points = rng.random_range(0..self.max_value);
     }
 
     fn points(&self) -> u8 {
-        self.max_value - self.current_value
+        self.points
     }
 }
 
@@ -63,10 +61,10 @@ mod die_tests {
     #[test]
     fn test_points() {
         let mut die = Die::six();
-        die.current_value = 4;
+        die.points = 2;
         assert_eq!(die.points(), 2); // 6 - 4 = 2 points
 
-        die.current_value = 6;
+        die.points = 0;
         assert_eq!(die.points(), 0); // 6 - 6 = 0 points
     }
 }
@@ -122,7 +120,7 @@ impl Game {
 impl std::fmt::Display for Game {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         for die in self.dice.iter() {
-            write!(f, "{} ", die.current_value)?;
+            write!(f, "{} ", die.points)?;
         }
         writeln!(f)?;
         for die in self.dice.iter() {
@@ -177,21 +175,6 @@ fn find_big_min_die(dice: &[Die]) -> usize {
         .min_by_key(|(_, d)| (d.points(), u8::MAX - d.max_value))
         .unwrap()
         .0
-}
-
-// Find all dice with the same value as the die at the given index
-fn find_dice_with_same_value(dice: &[Die], index: usize) -> Vec<usize> {
-    if index >= dice.len() {
-        return vec![];
-    }
-
-    let target_value = dice[index].current_value;
-
-    dice.iter()
-        .enumerate()
-        .filter(|(_, die)| die.current_value == target_value)
-        .map(|(i, _)| i)
-        .collect()
 }
 
 // Remove the die with minimum points
@@ -274,10 +257,10 @@ mod func_tests {
     #[test]
     fn test_find_zero_point_dice() {
         let dice = vec![
-            Die::six().with_roll(6),
-            Die::six().with_roll(3),
-            Die::eight().with_roll(8),
-            Die::nine().with_roll(7),
+            Die::six().with_points(0),
+            Die::six().with_points(3),
+            Die::eight().with_points(0),
+            Die::nine().with_points(1),
         ];
 
         let zero_indices = find_zero_point_dice(&dice);
@@ -287,10 +270,10 @@ mod func_tests {
     #[test]
     fn test_find_min_points_die() {
         let dice = vec![
-            Die::six().with_roll(3),     // 3 points
-            Die::eight().with_roll(7),   // 1 point
-            Die::nine().with_roll(5),    // 4 points
-            Die::twelve().with_roll(10), // 2 points
+            Die::six().with_points(3),
+            Die::eight().with_points(1),
+            Die::nine().with_points(4),
+            Die::twelve().with_points(2),
         ];
 
         let min_index = find_min_points_die(&dice);
@@ -300,10 +283,10 @@ mod func_tests {
     #[test]
     fn test_all_zero_or_prio_min_strategy() {
         let mut dice = vec![
-            Die::six().with_roll(3),     // 3 points
-            Die::eight().with_roll(7),   // 1 point
-            Die::nine().with_roll(5),    // 4 points
-            Die::twelve().with_roll(10), // 2 points
+            Die::six().with_points(3),
+            Die::eight().with_points(1),
+            Die::nine().with_points(4),
+            Die::twelve().with_points(2),
         ];
 
         let prio_min = all_zero_or_prio_min_strategy(&dice);
@@ -324,10 +307,7 @@ mod func_tests {
 
     #[test]
     fn test_all_zero_or_prio_min_strategy_hmm() {
-        let mut dice = vec![
-            Die::six().with_roll(5),    // 1 point
-            Die::twelve().with_roll(9), // 3 points
-        ];
+        let mut dice = vec![Die::six().with_points(1), Die::twelve().with_points(3)];
 
         let prio_min = all_zero_or_prio_min_strategy(&dice);
         assert_eq!(vec![1], prio_min); // 12 - 2 * 3 = 6
@@ -341,23 +321,23 @@ mod func_tests {
     fn test_game_remove_dice() {
         let mut game = Game::new();
         game.dice = vec![
-            Die::six().with_roll(3),
-            Die::eight().with_roll(7),
-            Die::nine().with_roll(5),
-            Die::twelve().with_roll(10),
+            Die::six().with_points(3),
+            Die::eight().with_points(1),
+            Die::nine().with_points(5),
+            Die::twelve().with_points(2),
         ];
 
         let points = game.remove_dice(&[1, 3]);
         assert_eq!(points, 3); // 1 + 2 = 3 points
         assert_eq!(game.dice.len(), 2); // Should have 2 dice left
-        assert_eq!(game.dice[0].current_value, 3); // First die should remain
-        assert_eq!(game.dice[1].current_value, 5); // Third die should remain
+        assert_eq!(game.dice[0].points, 3); // First die should remain
+        assert_eq!(game.dice[1].points, 5); // Third die should remain
     }
 
     #[test]
     fn test_full_game_simulation() {
-        let points = simulate_game(one_min_strategy, 785);
-        assert!(points == 0);
+        let points = simulate_game(one_min_strategy, 6454);
+        assert_eq!(0, points);
     }
 }
 
@@ -368,7 +348,7 @@ fn simulate_game(strategy: Strategy, seed: u64) -> u8 {
 
     while !game.is_over() {
         game.roll_all(&mut rng);
-        // if seed == 785 {
+        // if seed == 6454 {
         //     println!("{}\n", game);
         // }
         let indices = strategy(&game.dice);
