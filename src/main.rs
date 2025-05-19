@@ -202,11 +202,11 @@ fn all_zero_or_prio_min_strategy(dice: &[Die]) -> Vec<usize> {
 
     // Find the die with best score (higher max_value and lower points)
     let mut best_index = 0;
-    let mut best_score = f32::MIN;
+    let mut best_score = i8::MIN;
 
     for (i, die) in dice.iter().enumerate() {
         // Score function: higher is better - prioritize high max_value and low points
-        let score = die.max_value as f32 - 2.0 * die.points() as f32;
+        let score = die.max_value as i8 - 2 * die.points() as i8;
         if score > best_score {
             best_score = score;
             best_index = i;
