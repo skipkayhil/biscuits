@@ -76,7 +76,7 @@ struct Game {
 
 impl Game {
     fn new() -> Self {
-        let mut dice = Vec::new();
+        let mut dice = Vec::with_capacity(15);
 
         // Add the 12 six-sided dice
         for _ in 0..12 {
