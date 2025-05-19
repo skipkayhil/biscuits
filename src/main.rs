@@ -12,11 +12,38 @@ struct Die {
 }
 
 impl Die {
-    fn new(max_value: u8) -> Self {
+    fn six() -> Self {
         Die {
-            max_value,
+            max_value: 6,
             current_value: 0,
         }
+    }
+
+    fn eight() -> Self {
+        Die {
+            max_value: 8,
+            current_value: 0,
+        }
+    }
+
+    fn nine() -> Self {
+        Die {
+            max_value: 9,
+            current_value: 0,
+        }
+    }
+
+    fn twelve() -> Self {
+        Die {
+            max_value: 12,
+            current_value: 0,
+        }
+    }
+
+    #[cfg(test)]
+    fn with_roll(mut self, roll: u8) -> Self {
+        self.current_value = roll;
+        self
     }
 
     fn roll(&mut self, rng: &mut impl Rng) {
@@ -35,7 +62,7 @@ mod die_tests {
 
     #[test]
     fn test_points() {
-        let mut die = Die::new(6);
+        let mut die = Die::six();
         die.current_value = 4;
         assert_eq!(die.points(), 2); // 6 - 4 = 2 points
 
@@ -55,13 +82,13 @@ impl Game {
 
         // Add the 12 six-sided dice
         for _ in 0..12 {
-            dice.push(Die::new(6));
+            dice.push(Die::six());
         }
 
         // Add the special dice
-        dice.push(Die::new(8));
-        dice.push(Die::new(9));
-        dice.push(Die::new(12));
+        dice.push(Die::eight());
+        dice.push(Die::nine());
+        dice.push(Die::twelve());
 
         Game { dice }
     }
@@ -247,22 +274,10 @@ mod func_tests {
     #[test]
     fn test_find_zero_point_dice() {
         let dice = vec![
-            Die {
-                max_value: 6,
-                current_value: 6,
-            },
-            Die {
-                max_value: 6,
-                current_value: 3,
-            },
-            Die {
-                max_value: 8,
-                current_value: 8,
-            },
-            Die {
-                max_value: 9,
-                current_value: 7,
-            },
+            Die::six().with_roll(6),
+            Die::six().with_roll(3),
+            Die::eight().with_roll(8),
+            Die::nine().with_roll(7),
         ];
 
         let zero_indices = find_zero_point_dice(&dice);
@@ -272,22 +287,10 @@ mod func_tests {
     #[test]
     fn test_find_min_points_die() {
         let dice = vec![
-            Die {
-                max_value: 6,
-                current_value: 3,
-            }, // 3 points
-            Die {
-                max_value: 8,
-                current_value: 7,
-            }, // 1 point
-            Die {
-                max_value: 9,
-                current_value: 5,
-            }, // 4 points
-            Die {
-                max_value: 12,
-                current_value: 10,
-            }, // 2 points
+            Die::six().with_roll(3),     // 3 points
+            Die::eight().with_roll(7),   // 1 point
+            Die::nine().with_roll(5),    // 4 points
+            Die::twelve().with_roll(10), // 2 points
         ];
 
         let min_index = find_min_points_die(&dice);
@@ -297,22 +300,10 @@ mod func_tests {
     #[test]
     fn test_all_zero_or_prio_min_strategy() {
         let mut dice = vec![
-            Die {
-                max_value: 6,
-                current_value: 3,
-            }, // 3 points
-            Die {
-                max_value: 8,
-                current_value: 7,
-            }, // 1 point
-            Die {
-                max_value: 9,
-                current_value: 5,
-            }, // 4 points
-            Die {
-                max_value: 12,
-                current_value: 10,
-            }, // 2 points
+            Die::six().with_roll(3),     // 3 points
+            Die::eight().with_roll(7),   // 1 point
+            Die::nine().with_roll(5),    // 4 points
+            Die::twelve().with_roll(10), // 2 points
         ];
 
         let prio_min = all_zero_or_prio_min_strategy(&dice);
@@ -334,14 +325,8 @@ mod func_tests {
     #[test]
     fn test_all_zero_or_prio_min_strategy_hmm() {
         let mut dice = vec![
-            Die {
-                max_value: 6,
-                current_value: 5,
-            }, // 1 points
-            Die {
-                max_value: 12,
-                current_value: 9,
-            }, // 3 points
+            Die::six().with_roll(5),    // 1 point
+            Die::twelve().with_roll(9), // 3 points
         ];
 
         let prio_min = all_zero_or_prio_min_strategy(&dice);
@@ -356,22 +341,10 @@ mod func_tests {
     fn test_game_remove_dice() {
         let mut game = Game::new();
         game.dice = vec![
-            Die {
-                max_value: 6,
-                current_value: 3,
-            },
-            Die {
-                max_value: 8,
-                current_value: 7,
-            },
-            Die {
-                max_value: 9,
-                current_value: 5,
-            },
-            Die {
-                max_value: 12,
-                current_value: 10,
-            },
+            Die::six().with_roll(3),
+            Die::eight().with_roll(7),
+            Die::nine().with_roll(5),
+            Die::twelve().with_roll(10),
         ];
 
         let points = game.remove_dice(&[1, 3]);
