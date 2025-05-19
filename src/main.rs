@@ -1,40 +1,60 @@
 use rand::Rng;
 use rand::SeedableRng;
 use rand::rngs::StdRng;
+use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::time::Instant;
 
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+enum Faces {
+    Six,
+    Eight,
+    Ten,
+    Twelve,
+}
+
+impl Faces {
+    fn value(&self) -> u8 {
+        match self {
+            Faces::Six => 6,
+            Faces::Eight => 8,
+            Faces::Ten => 10,
+            Faces::Twelve => 12,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 struct Die {
-    max_value: u8,
+    faces: Faces,
     points: u8,
 }
 
 impl Die {
     fn six() -> Self {
         Die {
-            max_value: 6,
+            faces: Faces::Six,
             points: 6,
         }
     }
 
     fn eight() -> Self {
         Die {
-            max_value: 8,
+            faces: Faces::Eight,
             points: 8,
         }
     }
 
     fn ten() -> Self {
         Die {
-            max_value: 10,
+            faces: Faces::Ten,
             points: 10,
         }
     }
 
     fn twelve() -> Self {
         Die {
-            max_value: 12,
+            faces: Faces::Twelve,
             points: 12,
         }
     }
@@ -46,7 +66,7 @@ impl Die {
     }
 
     fn roll(&mut self, rng: &mut impl Rng) {
-        self.points = rng.random_range(0..self.max_value);
+        self.points = rng.random_range(0..self.faces.value());
     }
 
     fn points(&self) -> u8 {
@@ -124,7 +144,7 @@ impl std::fmt::Display for Game {
         }
         writeln!(f)?;
         for die in self.dice.iter() {
-            write!(f, "{} ", die.max_value)?;
+            write!(f, "{} ", die.faces.value())?;
         }
 
         Ok(())
@@ -148,7 +168,7 @@ fn find_zero_point_dice(dice: &[Die]) -> Vec<usize> {
 fn find_big_zero_dice(dice: &[Die]) -> Vec<usize> {
     dice.iter()
         .enumerate()
-        .filter(|(_, die)| die.points() == 0 && die.max_value != 6)
+        .filter(|(_, die)| die.points() == 0 && die.faces.value() != 6)
         .map(|(i, _)| i)
         .collect()
 }
@@ -172,7 +192,13 @@ fn find_min_points_die(dice: &[Die]) -> usize {
 fn find_big_min_die(dice: &[Die]) -> usize {
     dice.iter()
         .enumerate()
-        .min_by_key(|(_, d)| (d.points(), u8::MAX - d.max_value))
+        .min_by(|(_, a), (_, b)| {
+            let point_cmp = a.points().cmp(&b.points());
+            match point_cmp {
+                Ordering::Equal => b.faces.cmp(&a.faces),
+                _ => point_cmp,
+            }
+        })
         .unwrap()
         .0
 }
@@ -193,7 +219,7 @@ fn all_zero_or_one_min_strategy(dice: &[Die]) -> Vec<usize> {
 }
 
 fn prio_min_for(die: &Die) -> i8 {
-    die.max_value as i8 - 4 * die.points() as i8
+    die.faces.value() as i8 - 4 * die.points() as i8
 }
 
 // Prioritize removing high-sided dice when they have low points
@@ -206,15 +232,15 @@ fn all_zero_or_prio_min_strategy(dice: &[Die]) -> Vec<usize> {
 
     // Find the die with best score (higher max_value and lower points)
     let mut best_index = 0;
-    let mut best_max = 0;
+    let mut best_max = &Faces::Six;
     let mut best_score = i8::MIN;
 
     for (i, die) in dice.iter().enumerate() {
         // Score function: higher is better - prioritize high max_value and low points
         let score = prio_min_for(die);
-        if score > best_score || (score == best_score && die.max_value > best_max) {
+        if score > best_score || (score == best_score && die.faces > *best_max) {
             best_score = score;
-            best_max = die.max_value;
+            best_max = &die.faces;
             best_index = i;
         }
     }
@@ -235,7 +261,7 @@ fn all_zero_or_big_min_strategy(dice: &[Die]) -> Vec<usize> {
 fn all_big_zero_or_one_zero_or_big_min_strategy(dice: &[Die]) -> Vec<usize> {
     let big_zeros = find_big_zero_dice(dice);
     if !big_zeros.is_empty() {
-        let big_dice_count = dice.iter().filter(|die| die.max_value != 6).count();
+        let big_dice_count = dice.iter().filter(|die| die.faces.value() != 6).count();
         let big_zero_count = big_zeros.len();
 
         if big_dice_count == big_zero_count {
@@ -246,7 +272,7 @@ fn all_big_zero_or_one_zero_or_big_min_strategy(dice: &[Die]) -> Vec<usize> {
 
     let all_zeros = find_zero_point_dice(dice);
     if !all_zeros.is_empty() {
-        if dice.iter().filter(|die| die.max_value != 6).count() == 0 {
+        if dice.iter().filter(|die| die.faces.value() != 6).count() == 0 {
             return all_zeros;
         } else {
             return vec![all_zeros[0]];
@@ -283,7 +309,20 @@ mod func_tests {
         ];
 
         let min_index = find_min_points_die(&dice);
-        assert_eq!(min_index, 1); // Index 1 has only 1 point
+        assert_eq!(min_index, 1);
+    }
+
+    #[test]
+    fn test_find_big_min_die() {
+        let mut dice = vec![Die::six().with_points(1), Die::ten().with_points(1)];
+
+        let min_index = find_big_min_die(&dice);
+        assert_eq!(1, min_index);
+
+        dice.reverse();
+
+        let min_index = find_big_min_die(&dice);
+        assert_eq!(0, min_index);
     }
 
     #[test]
@@ -331,12 +370,12 @@ mod func_tests {
         dice.iter().for_each(|d| assert_eq!(4, prio_min_for(d)));
 
         let prio_min = all_zero_or_prio_min_strategy(&dice);
-        assert_eq!(12, dice[prio_min[0]].max_value);
+        assert_eq!(12, dice[prio_min[0]].faces.value());
 
         dice.reverse();
 
         let prio_min = all_zero_or_prio_min_strategy(&dice);
-        assert_eq!(12, dice[prio_min[0]].max_value);
+        assert_eq!(12, dice[prio_min[0]].faces.value());
     }
 
     #[test]
