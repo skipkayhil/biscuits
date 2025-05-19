@@ -192,6 +192,10 @@ fn all_zero_or_one_min_strategy(dice: &[Die]) -> Vec<usize> {
     }
 }
 
+fn prio_min_for(die: &Die) -> i8 {
+    die.max_value as i8 - 4 * die.points() as i8
+}
+
 // Prioritize removing high-sided dice when they have low points
 fn all_zero_or_prio_min_strategy(dice: &[Die]) -> Vec<usize> {
     // First check for zero point dice
@@ -202,13 +206,15 @@ fn all_zero_or_prio_min_strategy(dice: &[Die]) -> Vec<usize> {
 
     // Find the die with best score (higher max_value and lower points)
     let mut best_index = 0;
+    let mut best_max = 0;
     let mut best_score = i8::MIN;
 
     for (i, die) in dice.iter().enumerate() {
         // Score function: higher is better - prioritize high max_value and low points
-        let score = die.max_value as i8 - 2 * die.points() as i8;
-        if score > best_score {
+        let score = prio_min_for(die);
+        if score > best_score || (score == best_score && die.max_value > best_max) {
             best_score = score;
+            best_max = die.max_value;
             best_index = i;
         }
     }
@@ -290,19 +296,19 @@ mod func_tests {
         ];
 
         let prio_min = all_zero_or_prio_min_strategy(&dice);
-        assert_eq!(vec![3], prio_min); // 12 - 2 * 2 = 8
+        assert_eq!(vec![3], prio_min); // 12 - 4 * 2 = 4
 
         dice.remove(prio_min[0]);
         let prio_min = all_zero_or_prio_min_strategy(&dice);
-        assert_eq!(vec![1], prio_min); // 8 - 2 * 1 = 6
+        assert_eq!(vec![1], prio_min); // 8 - 4 * 1 = 4
 
         dice.remove(prio_min[0]);
         let prio_min = all_zero_or_prio_min_strategy(&dice);
-        assert_eq!(vec![1], prio_min); // 9 - 2 * 4 = 1
+        assert_eq!(vec![0], prio_min); // 6 - 4 * 3 = -6
 
         dice.remove(prio_min[0]);
         let prio_min = all_zero_or_prio_min_strategy(&dice);
-        assert_eq!(vec![0], prio_min); // 6 - 2 * 3 = 0
+        assert_eq!(vec![0], prio_min); // 9 - 4 * 4 = -7
     }
 
     #[test]
@@ -310,11 +316,27 @@ mod func_tests {
         let mut dice = vec![Die::six().with_points(1), Die::twelve().with_points(3)];
 
         let prio_min = all_zero_or_prio_min_strategy(&dice);
-        assert_eq!(vec![1], prio_min); // 12 - 2 * 3 = 6
+        assert_eq!(vec![0], prio_min); // 6 - 4 * 1 = 2
 
         dice.remove(prio_min[0]);
         let prio_min = all_zero_or_prio_min_strategy(&dice);
-        assert_eq!(vec![0], prio_min); // 6 - 2 * 1 = 4
+        assert_eq!(vec![0], prio_min); // 12 - 4 * 3 = 0
+    }
+
+    #[test]
+    fn test_all_zero_or_prio_min_deterministic() {
+        let mut dice = vec![Die::eight().with_points(1), Die::twelve().with_points(2)];
+        // 8 - 4 * 1 = 4
+        // 12 - 4 * 2 = 4
+        dice.iter().for_each(|d| assert_eq!(4, prio_min_for(d)));
+
+        let prio_min = all_zero_or_prio_min_strategy(&dice);
+        assert_eq!(12, dice[prio_min[0]].max_value);
+
+        dice.reverse();
+
+        let prio_min = all_zero_or_prio_min_strategy(&dice);
+        assert_eq!(12, dice[prio_min[0]].max_value);
     }
 
     #[test]
