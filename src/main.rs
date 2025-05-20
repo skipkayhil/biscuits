@@ -155,16 +155,20 @@ type Strategy = fn(&[Die]) -> Vec<usize>;
 fn find_zero_point_dice(dice: &[Die]) -> Vec<usize> {
     dice.iter()
         .enumerate()
-        .filter(|(_, die)| die.points() == 0)
-        .map(|(i, _)| i)
+        .filter_map(|(i, die)| if die.points() == 0 { Some(i) } else { None })
         .collect()
 }
 
 fn find_big_zero_dice(dice: &[Die]) -> Vec<usize> {
     dice.iter()
         .enumerate()
-        .filter(|(_, die)| die.points() == 0 && die.faces != Faces::Six)
-        .map(|(i, _)| i)
+        .filter_map(|(i, die)| {
+            if die.points() == 0 && die.faces != Faces::Six {
+                Some(i)
+            } else {
+                None
+            }
+        })
         .collect()
 }
 
