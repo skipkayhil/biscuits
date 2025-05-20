@@ -1,6 +1,6 @@
 use rand::Rng;
 use rand::SeedableRng;
-use rand::rngs::StdRng;
+use rand::rngs::SmallRng;
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::time::Instant;
@@ -392,19 +392,19 @@ mod func_tests {
 
     #[test]
     fn test_full_game_simulation() {
-        let points = simulate_game(one_min_strategy, 6454);
+        let points = simulate_game(all_zero_or_big_min_strategy, 800);
         assert_eq!(0, points);
     }
 }
 
 fn simulate_game(strategy: Strategy, seed: u64) -> u8 {
-    let mut rng = StdRng::seed_from_u64(seed);
+    let mut rng = SmallRng::seed_from_u64(seed);
     let mut game = Game::new();
     let mut total_points = 0;
 
     while !game.is_over() {
         game.roll_all(&mut rng);
-        // if seed == 6454 {
+        // if seed == 800 {
         //     println!("{}\n", game);
         // }
         let mut indices = strategy(&game.dice);
@@ -425,6 +425,7 @@ fn run_simulations(strategy: Strategy, num_simulations: u64) -> (f64, u8, u64, u
         total_points += points as u64;
         if points == 0 {
             gravies += 1;
+            // println!("seed: {}", i);
         }
         min_points = min_points.min(points);
         max_points = max_points.max(points);

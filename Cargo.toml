@@ -3,5 +3,7 @@ name = "biscuits"
 version = "0.1.0"
 edition = "2024"
 
-[dependencies]
-rand = "0.9.1"
+[dependencies.rand]
+version = "0.9.1"
+default-features = false
+features = ["small_rng"]
