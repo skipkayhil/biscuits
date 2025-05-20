@@ -117,17 +117,12 @@ impl Game {
         }
     }
 
-    fn remove_dice(&mut self, indices: &[usize]) -> u8 {
-        // Sort indices in descending order to avoid shifting problems
-        let mut sorted_indices = indices.to_vec();
-        sorted_indices.sort_unstable_by(|a, b| b.cmp(a));
+    fn remove_dice(&mut self, indices: &mut [usize]) -> u8 {
+        indices.sort_unstable_by(|a, b| b.cmp(a));
 
         let mut points = 0;
-        for &index in &sorted_indices {
-            if index < self.dice.len() {
-                points += self.dice[index].points();
-                self.dice.remove(index);
-            }
+        for index in indices {
+            points += self.dice.swap_remove(*index).points();
         }
         points
     }
@@ -168,7 +163,7 @@ fn find_zero_point_dice(dice: &[Die]) -> Vec<usize> {
 fn find_big_zero_dice(dice: &[Die]) -> Vec<usize> {
     dice.iter()
         .enumerate()
-        .filter(|(_, die)| die.points() == 0 && die.faces.value() != 6)
+        .filter(|(_, die)| die.points() == 0 && die.faces != Faces::Six)
         .map(|(i, _)| i)
         .collect()
 }
@@ -261,7 +256,7 @@ fn all_zero_or_big_min_strategy(dice: &[Die]) -> Vec<usize> {
 fn all_big_zero_or_one_zero_or_big_min_strategy(dice: &[Die]) -> Vec<usize> {
     let big_zeros = find_big_zero_dice(dice);
     if !big_zeros.is_empty() {
-        let big_dice_count = dice.iter().filter(|die| die.faces.value() != 6).count();
+        let big_dice_count = dice.iter().filter(|die| die.faces != Faces::Six).count();
         let big_zero_count = big_zeros.len();
 
         if big_dice_count == big_zero_count {
@@ -272,7 +267,7 @@ fn all_big_zero_or_one_zero_or_big_min_strategy(dice: &[Die]) -> Vec<usize> {
 
     let all_zeros = find_zero_point_dice(dice);
     if !all_zeros.is_empty() {
-        if dice.iter().filter(|die| die.faces.value() != 6).count() == 0 {
+        if dice.iter().filter(|die| die.faces != Faces::Six).count() == 0 {
             return all_zeros;
         } else {
             return vec![all_zeros[0]];
@@ -388,7 +383,7 @@ mod func_tests {
             Die::twelve().with_points(2),
         ];
 
-        let points = game.remove_dice(&[1, 3]);
+        let points = game.remove_dice(&mut [1, 3]);
         assert_eq!(points, 3); // 1 + 2 = 3 points
         assert_eq!(game.dice.len(), 2); // Should have 2 dice left
         assert_eq!(game.dice[0].points, 3); // First die should remain
@@ -412,8 +407,8 @@ fn simulate_game(strategy: Strategy, seed: u64) -> u8 {
         // if seed == 6454 {
         //     println!("{}\n", game);
         // }
-        let indices = strategy(&game.dice);
-        total_points += game.remove_dice(&indices);
+        let mut indices = strategy(&game.dice);
+        total_points += game.remove_dice(&mut indices);
     }
 
     total_points
