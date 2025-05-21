@@ -281,6 +281,79 @@ fn all_big_zero_or_one_zero_or_big_min_strategy(dice: &[Die]) -> Vec<usize> {
     vec![find_big_min_die(dice)]
 }
 
+fn fettermania_cutoff(faces: &Faces, dice_left: usize) -> u8 {
+    match faces {
+        Faces::Six => match dice_left {
+            6.. => 0,
+            3..=5 => 1,
+            0..=2 => 2,
+        },
+        Faces::Eight => match dice_left {
+            8.. => 0,
+            4..=7 => 1,
+            3 => 2,
+            0..=2 => 3,
+        },
+        Faces::Ten => match dice_left {
+            11.. => 0,
+            6..=10 => 1,
+            4..=5 => 2,
+            3 => 3,
+            0..=2 => 4,
+        },
+        Faces::Twelve => match dice_left {
+            13.. => 0,
+            7..=12 => 1,
+            5..=6 => 2,
+            4 => 3,
+            3 => 4,
+            0..=2 => 5,
+        },
+    }
+}
+
+fn fettermania_blackjack_strategy(dice: &[Die]) -> Vec<usize> {
+    let dice_left = dice.len();
+
+    let cutoff_candidates: Vec<usize> = dice
+        .iter()
+        .enumerate()
+        .filter_map(|(i, die)| {
+            let cutoff = fettermania_cutoff(&die.faces, dice_left);
+            if die.points() <= cutoff {
+                Some(i)
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    if !cutoff_candidates.is_empty() {
+        return cutoff_candidates;
+    }
+
+    // Interestingly, the paper suggests that breaking ties here is arbitrary, but based on my
+    // tests the avg improves from 8.53 when preferring small dice to 8.48 when preferring large
+    // dice
+    vec![
+        dice.iter()
+            .enumerate()
+            .min_by(|(_, a), (_, b)| {
+                let a_val = a.points() - fettermania_cutoff(&a.faces, dice_left);
+                let b_val = b.points() - fettermania_cutoff(&b.faces, dice_left);
+
+                let point_cmp = a_val.cmp(&b_val);
+
+                match point_cmp {
+                    Ordering::Equal => b.faces.cmp(&a.faces),
+                    _ => point_cmp,
+                }
+            })
+            .unwrap()
+            .0,
+    ]
+}
+
 #[cfg(test)]
 mod func_tests {
     use super::*;
@@ -453,6 +526,10 @@ fn main() {
         (
             "All Big Zero/One Zero/Big Min".to_string(),
             all_big_zero_or_one_zero_or_big_min_strategy,
+        ),
+        (
+            "Fettermania Blackjack".to_string(),
+            fettermania_blackjack_strategy,
         ),
     ];
 
