@@ -172,22 +172,6 @@ fn find_big_zero_dice(dice: &[Die]) -> Vec<usize> {
         .collect()
 }
 
-// Find the single die with minimum points
-fn find_min_points_die(dice: &[Die]) -> usize {
-    let mut min_points = u8::MAX;
-    let mut min_index = 0;
-
-    for (i, die) in dice.iter().enumerate() {
-        let points = die.points();
-        if points < min_points {
-            min_points = points;
-            min_index = i;
-        }
-    }
-
-    min_index
-}
-
 fn find_big_min_die(dice: &[Die]) -> usize {
     dice.iter()
         .enumerate()
@@ -200,21 +184,6 @@ fn find_big_min_die(dice: &[Die]) -> usize {
         })
         .unwrap()
         .0
-}
-
-// Remove the die with minimum points
-fn one_min_strategy(dice: &[Die]) -> Vec<usize> {
-    vec![find_min_points_die(dice)]
-}
-
-// Remove all dice with zero points, or the min points die if none
-fn all_zero_or_one_min_strategy(dice: &[Die]) -> Vec<usize> {
-    let zero_indices = find_zero_point_dice(dice);
-    if !zero_indices.is_empty() {
-        zero_indices
-    } else {
-        vec![find_min_points_die(dice)]
-    }
 }
 
 fn prio_min_for(die: &Die) -> i8 {
@@ -372,19 +341,6 @@ mod func_tests {
     }
 
     #[test]
-    fn test_find_min_points_die() {
-        let dice = vec![
-            Die::six().with_points(3),
-            Die::eight().with_points(1),
-            Die::ten().with_points(4),
-            Die::twelve().with_points(2),
-        ];
-
-        let min_index = find_min_points_die(&dice);
-        assert_eq!(min_index, 1);
-    }
-
-    #[test]
     fn test_find_big_min_die() {
         let mut dice = vec![Die::six().with_points(1), Die::ten().with_points(1)];
 
@@ -516,16 +472,14 @@ fn main() {
     let num_simulations: u64 = 100000;
 
     let strategies: Vec<(String, Strategy)> = vec![
-        ("One Min".to_string(), one_min_strategy),
-        ("All Zero/One Min".to_string(), all_zero_or_one_min_strategy),
-        (
-            "All Zero/Prio Min".to_string(),
-            all_zero_or_prio_min_strategy,
-        ),
         ("All Zero/Big Min".to_string(), all_zero_or_big_min_strategy),
         (
             "All Big Zero/One Zero/Big Min".to_string(),
             all_big_zero_or_one_zero_or_big_min_strategy,
+        ),
+        (
+            "All Zero/Prio Min".to_string(),
+            all_zero_or_prio_min_strategy,
         ),
         (
             "Fettermania Blackjack".to_string(),
