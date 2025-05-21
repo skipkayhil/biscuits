@@ -118,10 +118,10 @@ impl Game {
     }
 
     fn remove_dice(&mut self, indices: &mut [usize]) -> u8 {
-        indices.sort_unstable_by(|a, b| b.cmp(a));
+        // indices.sort_unstable_by(|a, b| b.cmp(a));
 
         let mut points = 0;
-        for index in indices {
+        for index in indices.iter().rev() {
             points += self.dice.swap_remove(*index).points();
         }
         points
@@ -175,12 +175,9 @@ fn find_big_zero_dice(dice: &[Die]) -> Vec<usize> {
 fn find_big_min_die(dice: &[Die]) -> usize {
     dice.iter()
         .enumerate()
-        .min_by(|(_, a), (_, b)| {
-            let point_cmp = a.points().cmp(&b.points());
-            match point_cmp {
-                Ordering::Equal => b.faces.cmp(&a.faces),
-                _ => point_cmp,
-            }
+        .min_by(|(_, a), (_, b)| match a.points().cmp(&b.points()) {
+            Ordering::Equal => b.faces.cmp(&a.faces),
+            o => o,
         })
         .unwrap()
         .0
@@ -250,34 +247,17 @@ fn all_big_zero_or_one_zero_or_big_min_strategy(dice: &[Die]) -> Vec<usize> {
     vec![find_big_min_die(dice)]
 }
 
+const FETTERMANIA_CUTOFF_06: [u8; 16] = [2, 2, 2, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+const FETTERMANIA_CUTOFF_08: [u8; 16] = [3, 3, 3, 2, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0];
+const FETTERMANIA_CUTOFF_10: [u8; 16] = [4, 4, 4, 3, 2, 2, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0];
+const FETTERMANIA_CUTOFF_12: [u8; 16] = [5, 5, 5, 4, 3, 2, 2, 1, 1, 1, 1, 1, 1, 0, 0, 0];
+
 fn fettermania_cutoff(faces: &Faces, dice_left: usize) -> u8 {
     match faces {
-        Faces::Six => match dice_left {
-            6.. => 0,
-            3..=5 => 1,
-            0..=2 => 2,
-        },
-        Faces::Eight => match dice_left {
-            8.. => 0,
-            4..=7 => 1,
-            3 => 2,
-            0..=2 => 3,
-        },
-        Faces::Ten => match dice_left {
-            11.. => 0,
-            6..=10 => 1,
-            4..=5 => 2,
-            3 => 3,
-            0..=2 => 4,
-        },
-        Faces::Twelve => match dice_left {
-            13.. => 0,
-            7..=12 => 1,
-            5..=6 => 2,
-            4 => 3,
-            3 => 4,
-            0..=2 => 5,
-        },
+        Faces::Six => FETTERMANIA_CUTOFF_06[dice_left],
+        Faces::Eight => FETTERMANIA_CUTOFF_08[dice_left],
+        Faces::Ten => FETTERMANIA_CUTOFF_10[dice_left],
+        Faces::Twelve => FETTERMANIA_CUTOFF_12[dice_left],
     }
 }
 
@@ -311,11 +291,9 @@ fn fettermania_blackjack_strategy(dice: &[Die]) -> Vec<usize> {
                 let a_val = a.points() - fettermania_cutoff(&a.faces, dice_left);
                 let b_val = b.points() - fettermania_cutoff(&b.faces, dice_left);
 
-                let point_cmp = a_val.cmp(&b_val);
-
-                match point_cmp {
+                match a_val.cmp(&b_val) {
                     Ordering::Equal => b.faces.cmp(&a.faces),
-                    _ => point_cmp,
+                    o => o,
                 }
             })
             .unwrap()
